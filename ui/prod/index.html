@@ -1,0 +1,457 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>PostGuard-WordPress Dashboard</title>
+    <link rel="stylesheet" href="/assets/app.css"/>
+</head>
+
+<body>
+
+    <div class="wrap">
+
+        <div class="topbar">
+            <div>
+                <div style="font-size: 22px;font-weight:800;">Dashboard</div>
+                <div id="me" class="muted"></div>
+            </div>
+            <div style="display: flex;gap: 10px;align-items: center;flex-wrap: wrap;">
+                <a id="adminLink" class="badge" href="/manageUsers.html" style="display: none;">Manage Users</a>
+                <a class="badge" href="/profile.html">Profile</a>
+                <button class="secondary" id="logout" style="width: auto;">Logout</button>
+            </div>
+        </div>
+        
+        <div class="row" style="margin-bottom: 16px;">
+            <div class="card">
+                <div style="font-weight: 800;margin-bottom: 10px;">Health</div>
+                <button id="buttonHealth">Health Check</button>
+                <div id="healthOut" class="muted" style="margin-top: 10px;white-space: pre-wrap;"></div>
+            </div>
+
+            <div class="card">
+                <div style="font-weight: 800;margin-bottom: 10px;">Audit Logs Integrity</div>
+                <button id="buttonAudit">Verify Integrity</button>
+                <div id="auditOut" class="muted" style="margin-top: 10px;white-space: pre-wrap;"></div>
+            </div>
+
+            
+        </div>
+
+        <div class="row" style="margin-bottom: 16px;">
+            <div class="card" id="alertCard">
+
+                <div class="topbar">
+                    <div style="font-weight: 800px;">Alert Configuration</div>
+                    <span class="badge" id="alertMode">read-only</span>
+                </div>
+
+                <label>Minimum alert threshhold</label>
+                <select id="alertRisk">
+                    <option value="allow">allow</option>
+                    <option value="warn">warn</option>
+                    <option value="block">block-worthy</option>
+                </select>
+
+                <label style="margin-top: 10px;">Send alerts to admins</label>
+                <select id="alertAdmins">
+                    <option value="true">yes</option>
+                    <option value="false">no</option>
+                </select>
+
+                <label style="margin-top: 10px;">Send alerts to analysts</label>
+                <select id="alertAnalysts">
+                    <option value="true">yes</option>
+                    <option value="false">no</option>
+                </select>
+
+                <label style="margin-top: 10px;">Extra emails (comma-separated)</label>
+                <textarea id="alertEmails" rows="3"></textarea>
+                
+                <div style="display: flex;gap:10px;margin-top:14px;">
+                    <button id="loadAlerts">Load</button>
+                    <button id="saveAlerts">Save</button>
+                </div>
+
+                <div id="alertOut" class="ok" style="margin-top:12px;"></div>
+                <div id="alertErr" class="err" style="margin-top:12px;"></div>
+                
+            </div>
+
+            <div class="card" id="watcherCard">
+                <div class="topbar">
+                    <div style="font-weight:800;">Watcher Scope</div>
+                    <span class="badge" id="watcherMode">read-only</span>
+                </div>
+
+                <label>Watcher paths (one per line)</label>
+                <textarea id="watchPaths" rows="4"></textarea>
+
+                <label style="margin-top:10px;">Ignored paths (one per line)</label>
+                <textarea id="ignorePaths" rows="4"></textarea>
+
+                <div style="display:flex;gap:10px;margin-top: 14px;">
+                    <button id="loadWatcher">Load</button>
+                    <button id="saveWatcher">Save</button>
+                </div>
+
+                <div id="watcherOut" class="ok" style="margin-top:12px;"></div>
+                <div id="watcherErr" class="err" style="margin-top:12px;"></div>
+            </div>
+
+        </div>
+
+        <div class="card">
+            <div class="topbar">
+
+                <div style="font-weight:800;">Incidents</div>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <button class="secondary" id="exportCsv">Export CSV</button>
+                    <button class="secondary" id="exportJson">Export JSON</button>
+                </div>
+            </div>
+
+            <div class="row" style="margin-bottom:14px;">
+                <div>
+                    <label>Risk filter</label>
+                    <select id="riskFilter">
+                        <option value="">all</option>
+                        <option value="allow">allow</option>
+                        <option value="warn">warn</option>
+                        <option value="block">block-worthy</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Category</label>
+                    <select id="categoryFilter">
+
+                        <option value="">all</option>
+                        <option value="create">create</option>
+                        <option value="modify">modify</option>
+                        <option value="delete">delete</option>
+                        <option value="rename">rename</option>
+                        <option value="login">login</option>
+                        <option value="profile_update">profile_update</option>
+                        <option value="post_edit">post_edit</option>
+                        <option value="post_delete">post_delete</option>
+                        <option value="upload">upload</option>
+                        <option value="delete_attachment">delete_attachment</option>
+                        <option value="user_register">user_register</option>
+                        <option value="user_delete">user_delete</option>
+                        <option value="role_change">role_change</option>
+                        <option value="plugin_activated">plugin_activated</option>
+                        <option value="plugin_deactivated">plugin_deactivated</option>
+                        <option value="theme_switched">theme_switched</option>
+                        <option value="upgrader_completed">upgrader_completed</option>
+
+                    </select>
+
+                </div>
+
+                <div>
+                    <label>Search</label>
+                    <input id="searchText" placeholder="directory,reason,actor user id"/>
+                </div>  
+            </div>
+
+            <div class="row" style="margin-bottom:14px;">
+
+                <div>
+                    <label>Date from</label>
+                    <input id="dateFrom" type="datetime-local"/>
+                </div>
+
+                <div>
+                    <label>Date to</label>
+                    <input id="dateTo" type="datetime-local"/>
+                </div>
+
+                <div>
+                    <label>Sort</label>
+                    <select id="sortOrder">
+                        <option value="newest">newest</option>
+                        <option value="oldest">oldest</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Limit</label>
+                    <input id="limitRows" value="100"/>
+                </div>
+            </div>
+
+            <div style="display:flex;gap: 10px;margin-bottom: 14px;">
+                <button id="buttonIncidents">Load Incidents</button>
+            </div>
+
+            <div id="incidentOut"></div>
+            <div id="incidentErr" class="err" style="margin-top: 12px;"></div>
+        </div>
+
+        <div class="card" style="margin-top: 16px;">
+            <div style="font-weight: 800;margin-bottom: 10px;">Incident Detail</div>
+            <pre id="incidentDetail" class="muted" style="white-space: pre-wrap;overflow: auto;max-height: 420px;"></pre>
+        </div>
+    </div>
+
+    <script type="module">
+
+        import { requireAuthOrRedirect, apiFetch, clearToken, downloadFromApi, escapeHtml} from "/assets/app.js";
+
+        const me= await requireAuthOrRedirect();
+
+        if (!me) throw new Error("redirected");
+        
+        const isAdmin =me.role === "admin";
+        document.getElementById("me").textContent= `${me.display_name||me.email} · ${me.role}`;
+
+        if (isAdmin) document.getElementById("adminLink").style.display= "inline-flex";
+
+        document.getElementById("logout").onclick=()=> {
+            clearToken();
+            location.href = "/login.html";
+        };
+
+        function setConfigEditability(){
+            const readOnly = !isAdmin;
+
+            const alertCard = document.getElementById("alertCard");
+            const watcherCard = document.getElementById("watcherCard");
+
+            if(readOnly){
+                if(alertCard) alertCard.style.display ="none";
+                if(watcherCard) watcherCard.style.display ="none";
+                return;
+            }
+
+            document.getElementById("alertMode").textContent = "admin";
+            document.getElementById("watcherMode").textContent ="admin";
+
+            ["alertRisk", "alertAdmins", "alertAnalysts", "alertEmails","saveAlerts","watchPaths","ignorePaths","saveWatcher"]
+                .forEach(id=>{
+                    const element =document.getElementById(id);
+
+                    if (element) element.disabled = false;
+
+                });
+        }
+
+        async function loadHealth(){
+            try{
+                const data= await apiFetch("/health");
+                document.getElementById("healthOut").textContent = JSON.stringify(data, null,2);
+
+            }
+            catch (e){
+                document.getElementById("healthOut").textContent= e.message;
+            }
+        }
+
+        async function loadAudit(){
+            try{
+                const data= await apiFetch("/audit/verify");
+                document.getElementById("auditOut").textContent = JSON.stringify(data, null,2);
+
+            }
+            catch (e){
+                document.getElementById("auditOut").textContent= e.message;
+            }
+        }
+
+        async function loadAlerts(){
+
+            document.getElementById("alertOut").textContent ="";
+            document.getElementById("alertErr").textContent ="";
+
+            try{
+                const data= await apiFetch("/config/alerts");
+                document.getElementById("alertRisk").value = data.min_risk;
+                document.getElementById("alertAdmins").value = String(data.send_to_admins);
+                document.getElementById("alertAnalysts").value = String(data.send_to_analysts);
+                document.getElementById("alertEmails").value = (data.extra_emails || []).join(",");
+
+            }
+            catch (e){
+                document.getElementById("alertErr").textContent= e.message;
+            }
+        }
+        
+        async function saveAlerts(){
+
+            document.getElementById("alertOut").textContent ="";
+            document.getElementById("alertErr").textContent ="";
+
+            try{
+                const data= await apiFetch("/config/alerts",{
+                    method: "PUT",
+                    headers: {"Content-Type":"application/json"},
+                    body: JSON.stringify({
+                        min_risk: document.getElementById("alertRisk").value,
+                        send_to_admins: document.getElementById("alertAdmins").value === "true",
+                        send_to_analysts: document.getElementById("alertAnalysts").value === "true",
+                        extra_emails: document.getElementById("alertEmails").value.split(",").map(value=>value.trim()).filter(Boolean),
+                    }),
+
+                });
+                document.getElementById("alertOut").textContent = "Alert policy updated.";
+            }
+            catch (e){
+                document.getElementById("alertErr").textContent= e.message;
+            }
+        }
+
+        async function loadWatcherScope(){
+
+            document.getElementById("watcherOut").textContent ="";
+            document.getElementById("watcherErr").textContent ="";
+
+            try{
+                const data= await apiFetch("/config/watcher-scope");
+
+                document.getElementById("watchPaths").value = (data.paths || []).join("\n");
+                document.getElementById("ignorePaths").value = (data.ignore_paths || []).join("\n");
+
+            }
+            catch (e){
+                document.getElementById("watcherErr").textContent= e.message;
+            }
+        }
+
+        async function saveWatcherScope(){
+
+            document.getElementById("watcherOut").textContent ="";
+            document.getElementById("watcherErr").textContent ="";
+
+            try{
+                await apiFetch("/config/watcher-scope",{
+                    method: "PUT",
+                    headers: {"Content-Type":"application/json"},
+                    body: JSON.stringify({
+                        paths: document.getElementById("watchPaths").value.split("\n").map(value => value.trim()).filter(Boolean),
+                        ignore_paths: document.getElementById("ignorePaths").value.split("\n").map(value => value.trim()).filter(Boolean),
+                    }),
+
+                });
+                document.getElementById("watcherOut").textContent = "Watcher scope updated.";
+            }
+            catch (e){
+                document.getElementById("watcherErr").textContent= e.message;
+            }
+        }
+
+        async function loadIncidentDetail(id){
+
+            const out =document.getElementById("incidentDetail");
+
+            out.textContent = "Loading...";
+
+            try{
+                const data= await apiFetch(`/incidents/${id}`);
+                out.textContent =JSON.stringify(data, null, 2);
+            }
+            catch (e){
+                out.textContent= e.message;
+            }
+        }
+
+        async function loadIncidents(){
+
+            const out =document.getElementById("incidentOut");
+            document.getElementById("incidentErr").textContent ="";
+            out.textContent = "Loading...";
+            const params = new URLSearchParams();
+
+            if(document.getElementById("riskFilter").value) 
+            params.set("risk_rating", document.getElementById("riskFilter").value);
+            
+            if(document.getElementById("categoryFilter").value) 
+            params.set("category", document.getElementById("categoryFilter").value);
+            
+            if(document.getElementById("searchText").value.trim()) 
+            params.set("q", document.getElementById("searchText").value.trim());
+
+            if(document.getElementById("dateFrom").value) 
+            params.set("date_from", new Date(document.getElementById("dateFrom").value).toISOString());
+
+            if(document.getElementById("dateTo").value) 
+            params.set("date_to", new Date(document.getElementById("dateTo").value).toISOString());
+
+            params.set("sort", document.getElementById("sortOrder").value);
+            params.set("limit", document.getElementById("limitRows").value || "100");
+
+
+            try{
+                const rows= await apiFetch(`/incidents?${params.toString()}`);
+                out.innerHTML=`
+                <div style="overflow-x:auto; max-width:100%;">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Risk</th>
+                                <th>Events</th>
+                                <th>Reason</th>
+                                <th>Actor</th>
+                                <th>Where</th>
+                                <th>Directory</th>
+                                <th>Window</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map(row =>`
+                                <tr data-id="${row.id}" style="cursor: pointer;">
+                                    <td>${row.id}</td>
+                                    <td><span class="badge">${escapeHtml(row.risk_rating || "")}</span></td>
+                                    <td>${row.event_count || 0}</td>
+                                    <td class="muted">${escapeHtml(row.risk_reason || "")}</td>
+                                    <td class="muted">${escapeHtml(row.actor_display || row.actor_user_name || row.actor_user_id || "")}</td>
+                                    <td class="muted">${escapeHtml(row.where_happened || "")}</td>
+                                    <td class="muted">${escapeHtml(row.directory || "")}</td>
+                                    <td class="muted">${escapeHtml(row.window_start || "")}<br>${escapeHtml(row.window_end || "")}</td>
+                                </tr>
+                
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </div>
+                `;
+
+                out.querySelectorAll("tr[data-id]").forEach(row => {
+                    row.onclick =()=> loadIncidentDetail(row.dataset.id);
+                });
+
+                if(rows.length){
+                    await loadIncidentDetail(rows[0].id);
+                } else{
+                    document.getElementById("incidentDetail").textContent ="";
+                }
+
+            }
+            catch (e){
+                document.getElementById("incidentErr").textContent= e.message;
+                out.textContent = "";
+            }
+        }
+
+        document.getElementById("buttonHealth").onclick =loadHealth;
+        document.getElementById("buttonAudit").onclick =loadAudit;
+        document.getElementById("loadAlerts").onclick =loadAlerts;
+        document.getElementById("saveAlerts").onclick =saveAlerts;
+        document.getElementById("loadWatcher").onclick =loadWatcherScope;
+        document.getElementById("saveWatcher").onclick =saveWatcherScope;
+        document.getElementById("buttonIncidents").onclick =loadIncidents;
+        document.getElementById("exportCsv").onclick =() => downloadFromApi("/incidents/export/csv","postguard-incidents.csv");
+        document.getElementById("exportJson").onclick =() => downloadFromApi("/incidents/export/json","postguard-incidents.json");
+
+        setConfigEditability();
+
+        await Promise.all([loadAlerts(), loadWatcherScope(), loadIncidents()]);
+
+
+    </script>
+
+</body>
+
+</html> 
+

@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>PostGuard-WordPress Register</title>
+    <link rel="stylesheet" href="/assets/app.css"/>
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="card">
+            <div class="topbar">
+                <div>
+                <div style="font-size: 22px;font-weight:800;">Register (Invite Required)</div>
+                <div class="muted">Use admin generated token to register</div>
+                </div>
+                <a class="badge" href="/login.html">Back to login</a>
+            </div>
+            <label for="display_name">Full Name</label>
+            <input id="display_name" name="display_name" type="text" placeholder="John Doe" autocomplete="name"/> 
+            <label>Email</label>
+            <input id="email"/>
+            <label style="margin-top: 10px;">Token</label>
+            <input id="token"/>
+            <label style="margin-top: 10px;">Password</label>
+            <input id="pass" type="password"/>
+            
+            <div style="display: flex;gap:10px;margin-top:14px;">
+            <button id="buttonRegister">Register</button>
+            </div>
+
+            <div id="out" class="err" style="margin-top: 12px;"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { qs, setToken } from "/assets/app.js";
+
+        document.getElementById("token").value= qs("token");
+
+        document.getElementById("buttonRegister").onclick= async()=> {
+
+            const out= document.getElementById("out");
+            out.textContent="";
+
+            const payload={
+                display_name: document.getElementById("display_name").value,
+                email: document.getElementById("email").value,
+                password: document.getElementById("pass").value,
+                invite_token: document.getElementById("token").value,
+            }
+
+            if (!payload.display_name||payload.display_name.length<2){
+                alert("Please input your full name.");
+                return;
+            }
+
+            try{
+                const res= await fetch("/api/auth/register",{
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.detail|| "Registration failed");
+                setToken(data.access_token);
+                location.href= "/";
+            }
+            catch (e){
+                out.textContent= e.message;
+            }
+        };
+    </script>
+
+</body>
+
+</html> 

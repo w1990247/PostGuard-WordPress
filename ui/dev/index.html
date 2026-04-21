@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>PostGuard-WordPress Dev UI</title>
+    <link rel="stylesheet" href="/assets/app.css"/>
+</head>
+
+<body>
+
+    <div class="wrap">
+
+        <div class="topbar">
+            <div>
+                <div style="font-size: 22px;font-weight:800;">Dev UI</div>
+                <div id="me" class="muted">Testing and debugging harness</div>
+            </div>
+            <a class="badge" href="/">Back to Dashboard</a>
+        </div>
+        
+        <div class="card">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button id="buttonHealth">Health</button>
+                <button id="buttonMe">Auth / Me</button>
+                <button id="buttonIncidents">Incidents</button>
+                <button id="buttonAudit">Audit Verify</button>
+                <button id="buttonAlerts">Alert Config</button>
+                <button id="buttonWatcher">Watcher Scope</button>
+
+            </div>
+            <pre id="out" class="muted" style="margin-top: 16px;white-space:pre-wrap;overflow: auto;max-height:520px;"></pre>
+
+        </div>
+    </div>
+
+    <script type="module">
+
+        import { requireAuthOrRedirect, apiFetch} from "/assets/app.js";
+        const me= await requireAuthOrRedirect();
+
+        if (!me) throw new Error("redirected");
+
+        const out = document.getElementById("out");
+
+        async function run(fn){
+            out.textContent ="Loaing...";
+
+            try{
+                const data=await fn();
+                out.textContent =JSON.stringify(data,null,2);
+
+            } catch (e){
+                out.textContent = e.message;
+            }
+        }
+
+        document.getElementById("buttonHealth").onclick =()=> run(() => apiFetch("/health"));
+        document.getElementById("buttonMe").onclick =()=> run(() => apiFetch("/auth/me"));
+        document.getElementById("buttonIncidents").onclick =()=> run(() => apiFetch("/incidents"));
+        document.getElementById("buttonAudit").onclick =()=> run(() => apiFetch("/audit/verify"));
+        document.getElementById("buttonAlerts").onclick =()=> run(() => apiFetch("/config/alerts"));
+        document.getElementById("buttonWatcher").onclick =()=> run(() => apiFetch("/config/watcher-scope"));
+        
+    </script>
+
+</body>
+
+</html> 

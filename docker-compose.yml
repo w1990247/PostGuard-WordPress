@@ -1,0 +1,224 @@
+services:
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "sqlite:////app/data/postguard.db"
+
+      REDIS: "true"
+      REDIS_URL: "redis://redis:6379/0"
+      REDIS_PREFIX: "postguard"
+
+      API_KEYS: "${API_KEYS}"
+      REPLAY_WINDOW_SECONDS: "120"
+      RATE_LIMIT_PER_MINUTE: "60"
+
+      JWT_SECRET: "${JWT_SECRET}"
+      JWT_ALG: "HS256"
+      JWT_EXPIRE_MINUTES: "120"
+      BOOTSTRAP_ADMIN_EMAIL: "${BOOTSTRAP_ADMIN_EMAIL}"
+      BOOTSTRAP_ADMIN_PASSWORD: "${BOOTSTRAP_ADMIN_PASSWORD}"
+      BOOTSTRAP_ANALYST_EMAIL: "${BOOTSTRAP_ANALYST_EMAIL}"
+      BOOTSTRAP_ANALYST_PASSWORD: "${BOOTSTRAP_ANALYST_PASSWORD}"
+
+      DEFAULT_WATCH_PATHS: "${DEFAULT_WATCH_PATHS}"
+      DEFAULT_WATCH_IGNORE_PATHS: "${DEFAULT_WATCH_IGNORE_PATHS}"
+      WATCHER_SCOPE_FILE: "${WATCHER_SCOPE_FILE}"
+
+      SMTP_HOST: "${SMTP_HOST}"
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_USER: "${SMTP_USER}"
+      SMTP_PASS: "${SMTP_PASS}"
+      SMTP_FROM: "${SMTP_FROM}"
+      SMTP_TLS: "${SMTP_TLS}"
+
+      API_BASE_URL: "${API_BASE_URL}" 
+
+      AUDIT_BACKUP_DIR: "/app/data/audit_backups"
+      AUDIT_ROTATE_MAX_BYTES: "${AUDIT_ROTATE_MAX_BYTES}"
+      AUDIT_BACKUP_COUNT: "${AUDIT_BACKUP_COUNT}"
+
+      SCORER_POLL_SECONDS: "${SCORER_POLL_SECONDS}"
+      SCORER_BATCH_SIZE: "${SCORER_BATCH_SIZE}"
+
+      ML_MODEL_PATH: "/app/data/ml_model.pkl"
+
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - redis
+      - mailhog
+
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    
+    ports:
+      - "80:80"
+      - "443:443"
+
+    environment:
+      CADDY_SITE_ADDRESS: "${CADDY_SITE_ADDRESS}"
+      CADDY_ALT_SITE_ADDRESS: "${CADDY_ALT_SITE_ADDRESS}"
+      CADDY_INTERNAL_SITE_ADDRESS: "${CADDY_INTERNAL_SITE_ADDRESS}"
+
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./ui:/srv/ui
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+  
+  watcher:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    command: ["python", "watcher/pg_watcher.py"]
+    environment:
+      PG_WATCH_POLL: "1"
+      PG_API_URL: "${PG_INTERNAL_INGEST_URL}"
+      PG_API_KEY_ID: "${PG_API_KEY_ID}"
+      PG_API_KEY_SECRET: "${PG_API_KEY_SECRET}"
+      PG_WATCH_PATHS: "${DEFAULT_WATCH_PATHS}"
+      WATCHER_SCOPE_FILE: "/app/data/watcher_scope.json"
+      PG_EVENT_COOLDOWN_SECONDS: "1.0"
+    volumes:
+      - wp_data:/var/www/html:ro
+      - ./data:/app/data:ro
+    depends_on:
+      - api
+      - caddy
+      - wordpress
+
+
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: "${WORDPRESS_DB_NAME}"
+      MARIADB_USER: "${WORDPRESS_DB_USER}"
+      MARIADB_PASSWORD: "${WORDPRESS_DB_PASSWORD}"
+      MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD}"
+    volumes:
+      - db_data:/var/lib/mysql
+  
+  wordpress:
+    image: wordpress:6.5-apache
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      WORDPRESS_DB_HOST: "${WORDPRESS_DB_HOST}"
+      WORDPRESS_DB_USER: "${WORDPRESS_DB_USER}"
+      WORDPRESS_DB_PASSWORD: "${WORDPRESS_DB_PASSWORD}"
+      WORDPRESS_DB_NAME: "${WORDPRESS_DB_NAME}"
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_HOME', '${WP_URL}');
+        define('WP_SITEURL', '${WP_URL}');
+      PG_API_URL: "${PG_INTERNAL_INGEST_URL}"
+      PG_API_KEY_ID: "${PG_API_KEY_ID}"
+      PG_API_KEY_SECRET: "${PG_API_KEY_SECRET}"
+    volumes:
+      - wp_data:/var/www/html
+      - ./sensor:/var/www/html/wp-content/plugins/postguard-sensor
+    depends_on:
+      - db
+      - api
+      - caddy
+
+  wpcli:
+    image: wordpress:cli
+    restart: on-failure
+    environment:
+      WORDPRESS_DB_HOST: "${WORDPRESS_DB_HOST}"
+      WORDPRESS_DB_USER: "${WORDPRESS_DB_USER}"
+      WORDPRESS_DB_PASSWORD: "${WORDPRESS_DB_PASSWORD}"
+      WORDPRESS_DB_NAME: "${WORDPRESS_DB_NAME}"
+
+      WP_ADMIN_USER: "${WP_ADMIN_USER}"
+      WP_ADMIN_PASSWORD: "${WP_ADMIN_PASSWORD}"
+      WP_ADMIN_EMAIL: "${WP_ADMIN_EMAIL}"
+      WP_URL: "${WP_URL}"
+
+    depends_on:
+      - db
+      - wordpress
+    volumes:
+      - wp_data:/var/www/html
+      - ./sensor:/var/www/html/wp-content/plugins/postguard-sensor
+    entrypoint: /bin/sh
+
+    command:
+      - -lc
+      - |
+
+          set -e;
+          echo "[wpcli] started"
+
+          echo "Waiting for core"
+          until [ -f /var/www/html/wp-settings.php ]; do
+            sleep 2
+          done
+
+          cd /var/www/html
+
+          echo "[wpcli] is waiting for wp-config.php..."
+          if [ ! -f /var/www/html/wp-config.php ]; then
+            wp config create --allow-root \
+              --path=/var/www/html \
+              --dbname="$WORDPRESS_DB_NAME" \
+              --dbuser="$WORDPRESS_DB_USER" \
+              --dbpass="$WORDPRESS_DB_PASSWORD" \
+              --dbhost="$WORDPRESS_DB_HOST" \
+              --skip-check
+          fi
+          echo "Waiting"
+          until wp db check --allow-root --path=/var/www/html >/dev/null 2>&1; do
+            sleep 3
+          done
+
+          if ! wp core is-installed --allow-root --path=/var/www/html >/dev/null 2>&1; then
+            echo "Wordpress auto-install..."
+            wp core install \
+              --allow-root \
+              --path=/var/www/html \
+              --url="${WP_URL}" \
+              --title="PostGuard Demo" \
+              --admin_user="${WP_ADMIN_USER}" \
+              --admin_password="${WP_ADMIN_PASSWORD}" \
+              --admin_email="${WP_ADMIN_EMAIL}" \
+              --skip-email
+          else
+            echo "Wordpress is already installed."
+          fi
+
+          echo "Sensor plugin is activating..."
+          wp plugin activate postguard-sensor --allow-root --path=/var/www/html || true
+
+          echo "WP init complete."
+          
+          
+
+
+volumes:
+  db_data:
+  wp_data:
+  caddy_data:
+  caddy_config:
+  

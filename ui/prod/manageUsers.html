@@ -1,0 +1,214 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>PostGuard-WordPress Manage Users</title>
+    <link rel="stylesheet" href="/assets/app.css"/>
+</head>
+
+<body>
+
+    <div class="wrap">
+
+        <div class="topbar">
+            <div>
+                <div style="font-size: 22px;font-weight:800;">Manage Users</div>
+                <div class="muted">Invite, edit, disable, or delete accounts</div>
+            </div>
+            <a class="badge" href="/">Back</a>
+        </div>
+        
+
+        <div class="card" style="margin-bottom: 16px;">
+            <div style="font-weight: 800;margin-bottom: 10px;">Create Invite</div>
+            
+            <div class="row">
+                <div>
+                    <label>Email</label>
+                    <input id="email" placeholder="newuser@local"/>
+                </div>
+                <div>
+                    <label>Role</label>
+                    <select id="role">
+                        <option value="analyst">analyst</option>
+                        <option value="admin">admin</option>
+                    </select>
+                </div>
+            </div>
+
+            <label style="margin-top: 10px;">Expires (minutes)</label>
+            <input id="exp" value="1440" />
+
+            <div style="display: flex;gap: 10px;margin-top: 14px;">
+                <button id="buttonInvite">Create Invite</button>
+            </div>
+
+            <div id="out" class="ok" style="margin-top: 12px;white-space:pre-wrap;"></div>
+            <div id="err" class="err" style="margin-top: 12px;"></div>
+
+        </div>
+
+        <div class="card">
+            <div class="topbar">
+                <div style="font-weight: 800;">Existing Users</div>
+                <button class="secondary" id="reloadUsers">Reload</button>
+            </div>
+
+            <div id="usersOut"></div>
+            <div id="usersErr" class="err" style="margin-top: 12px;"></div>
+
+        </div>
+
+    </div>
+
+    <script type="module">
+
+        import { requireAuthOrRedirect, apiFetch, escapeHtml} from "/assets/app.js";
+
+        const me= await requireAuthOrRedirect();
+
+        if (!me) throw new Error("redirected");
+        
+        if (me.role !=="admin") {
+            document.body.innerHTML= "<div class='wrap'><div class='card'><div class='err'>Forbidden</div></div></div>";
+            throw new Error("forbidden");
+        }
+
+
+        async function loadUsers(){
+            const out=document.getElementById("usersOut");
+            document.getElementById("usersErr").textContent ="";
+            out.textContent ="Loading...";
+
+            try{
+                const data =await apiFetch("/users");
+
+                out.innerHTML =`
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Display Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(user =>`
+                                <tr>
+                                    <td>${user.id}</td>
+                                    <td><input data-name="${user.id}" value="${escapeHtml(user.display_name)}"/></td>
+                                    <td><input data-email="${user.id}" value="${escapeHtml(user.email)}"/></td>
+                                    <td>
+                                        <select data-role="${user.id}">
+                                            <option value="analyst" ${user.role == "analyst" ? "selected": ""}>analyst</option>
+                                            <option value="admin" ${user.role == "admin" ? "selected": ""}>admin</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select data-active="${user.id}">
+                                            <option value="true" ${user.is_active ? "selected": ""}>active</option>
+                                            <option value="false" ${!user.is_active ? "selected": ""}>disabled</option>
+                                        </select>
+
+                                    </td>
+                                    <td>
+                                        <div style="display: flex;gap: 8px;">
+                                            <button data-save="${user.id}">Save</button>
+                                            <button class="secondary" data-delete="${user.id}">Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+            
+                            `).join("")}
+                        </tbody>
+                    </table>
+                
+                `;
+
+                out.querySelectorAll("[data-save]").forEach(button => {
+                    button.onclick =async ()=>{
+                        const id =button.getAttribute("data-save");
+                        const display_name =out.querySelector(`[data-name="${id}"]`).value;
+                        const email =out.querySelector(`[data-email="${id}"]`).value;
+                        const role =out.querySelector(`[data-role="${id}"]`).value;
+                        const is_active =out.querySelector(`[data-active="${id}"]`).value === "true";
+
+                        try{
+                            await apiFetch(`/users/${id}`,{
+                                method: "PATCH",
+                                headers: {"Content-Type":"application/json"},
+                                body: JSON.stringify({display_name,email,role,is_active}),
+                            });
+                            await loadUsers();
+
+                        } catch (error){
+                            document.getElementById("usersErr").textContent = error.message;
+                        }
+
+                    };
+
+                });
+
+                out.querySelectorAll("[data-delete]").forEach(button => {
+                    button.onclick =async ()=>{
+                        const id =button.getAttribute("data-delete");
+
+                        if (!confirm("Delete this user?")) return;
+
+                        try{
+                            await apiFetch(`/users/${id}`, {method: "DELETE"});
+                            await loadUsers();
+                        } catch (error){
+                            document.getElementById("usersErr").textContent = error.message;
+                        }
+                    };
+
+                });
+            } catch (error){
+                document.getElementById("usersErr").textContent = error.message;
+                out.textContent ="";
+            }
+        }
+
+        document.getElementById("reloadUsers").onclick =loadUsers;
+
+
+        document.getElementById("buttonInvite").onclick= async ()=> {
+            document.getElementById("out").textContent= "";
+            document.getElementById("err").textContent= "";
+
+            const payload={
+                email: document.getElementById("email").value,
+                role: document.getElementById("role").value,
+                expires_minutes: Number(document.getElementById("exp").value || "1440")
+            };
+
+            try{
+                const data = await apiFetch("/invites",{
+
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const fullUrl= `${location.origin}${data.register_url}`;
+                document.getElementById("out").textContent=
+                    `Invite token: ${data.invite_token}\nRegister URL:\n${fullUrl}\nExpires: ${data.expires_at}`;
+
+                await loadUsers();
+            }
+            catch (e){
+                document.getElementById("err").textContent= e.message;
+            }
+        
+        };
+        await loadUsers();
+
+    </script>
+
+</body>
+
+</html> 

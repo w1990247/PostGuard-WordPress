@@ -1,0 +1,36 @@
+http://{$CADDY_INTERNAL_SITE_ADDRESS:caddy} {
+
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+
+    respond "PostGuard internal Caddy route" 200
+
+}
+
+http://{$CADDY_SITE_ADDRESS:localhost}, http://{$CADDY_ALT_SITE_ADDRESS:127.0.0.1} {
+    redir https://{host}{uri} 308
+}
+
+{$CADDY_SITE_ADDRESS:localhost}, {$CADDY_ALT_SITE_ADDRESS:127.0.0.1} {
+    tls internal
+
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+
+    redir /dev /dev/
+
+    handle_path /dev/* {
+        root * /srv/ui/dev
+        try_files {path} /index.html
+        file_server
+    }
+
+    handle {
+        root * /srv/ui/prod
+        try_files {path} /index.html
+        file_server
+    }
+
+}

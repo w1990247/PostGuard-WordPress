@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+pydantic-settings
+redis
+python-jose[cryptography]
+passlib
+python-multipart
+requests
+watchdog
+email-validator
+scikit-learn

@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>PostGuard-WordPress Profile</title>
+    <link rel="stylesheet" href="/assets/app.css"/>
+</head>
+
+<body>
+    <div class="wrap">
+            <div class="topbar">
+                <div>
+                <div style="font-size: 22px;font-weight:800;">My Profile</div>
+                <div class="muted">Change your display name, email, or password</div>
+                </div>
+                <a class="badge" href="/">Back</a>
+            </div>
+
+            <div class="card">
+                <label>Display Name</label>
+                <input id="display_name"/> 
+
+                <label style="margin-top: 10px;">Email</label>
+                <input id="email"/>
+
+                <label style="margin-top: 10px;">Current Password</label>
+                <input id="current_password" type="password"/>
+
+                <label style="margin-top: 10px;">New Password</label>
+                <input id="new_password" type="password"/>
+            
+                <div style="display: flex;gap:10px;margin-top:14px;">
+                <button id="saveButton">Save Changes</button>
+                </div>
+
+                <div id="out" class="ok" style="margin-top: 12px;"></div>
+                <div id="err" class="err" style="margin-top: 12px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { requireAuthOrRedirect, apiFetch } from "/assets/app.js";
+
+        const me = await requireAuthOrRedirect();
+        if (!me) throw new Error("redirected");
+
+        document.getElementById("display_name").value= me.display_name || "";
+        document.getElementById("email").value= me.email || "";
+
+        document.getElementById("saveButton").onclick= async()=> {
+
+            document.getElementById("out").textContent ="";
+            document.getElementById("err").textContent ="";
+
+            const payload ={
+                display_name: document.getElementById("display_name").value,
+                email: document.getElementById("email").value,
+                current_password: document.getElementById("current_password").value || null,
+                new_password: document.getElementById("new_password").value || null,
+            
+            };
+
+            try{
+                await apiFetch("/auth/me",{
+                    method: "PATCH",
+                    headers: {"Content-type":"application/json"},
+                    body: JSON.stringify(payload),
+
+                });
+
+                document.getElementById("out").textContent ="Profile updated.";
+                document.getElementById("current_password").value ="";
+                document.getElementById("new_password").value ="";
+
+            } catch (error){
+                document.getElementById("err").textContent =error.message;
+            }
+
+        };
+    </script>
+
+</body>
+
+</html> 
